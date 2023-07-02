@@ -1,12 +1,17 @@
 from django.db import models
 from django_extensions.db.models import TimeStampedModel
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.validators import MinValueValidator
 import uuid
 # from charging_station.models import ChargingStation
+# from utils.choices import PaymentMode, TransactionStatus
+
+User = get_user_model()
+
 # Create your models here.
+
 
 PaymentMode =(
     ("wallet", "Wallet"),
@@ -23,8 +28,8 @@ TransactionStatus=(
 
 class Wallet(TimeStampedModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    ev_owner_balance = models.DecimalField(max_digits=18, decimal_places=2,validators= [MinValueValidator(0)] , default=0)
-    station_owner_balance = models.DecimalField(max_digits=18, decimal_places=2, validators= [MinValueValidator(0)], default=0)
+    ev_user_balance = models.DecimalField(max_digits=18, decimal_places=2,validators= [MinValueValidator(0)] , default=0)
+    station_user_balance = models.DecimalField(max_digits=18, decimal_places=2, validators= [MinValueValidator(0)], default=0)
     
     def __str__(self):
         return f"{self.user}"
@@ -52,20 +57,20 @@ def update_wallet(sender, instance, created, **kwargs):
     if created:
         print(instance.ev_user, instance.station_user)
         end_user_wallet = Wallet.objects.get(user=instance.ev_user)
-        owner_wallet = Wallet.objects.get(user=instance.station_user)
+        station_user_wallet = Wallet.objects.get(user=instance.station_user)
         
         if instance.ev_user != instance.station_user:
             # Deduct amount from end user wallet
-            end_user_wallet.ev_owner_balance -= instance.amount
+            end_user_wallet.ev_user_balance -= instance.amount
             end_user_wallet.save()
             
             # Add amount to owner wallet
-            owner_wallet.station_owner_balance += instance.amount
-            owner_wallet.save()
+            station_user_wallet.station_user_balance += instance.amount
+            station_user_wallet.save()
         else:
             # Deduct amount from owner wallet
-            owner_wallet.station_owner_balance -= instance.amount
-            owner_wallet.save()
+            station_user_wallet.station_user_balance -= instance.amount
+            station_user_wallet.save()
             
     print("A---- ", sender)
     print("B---- ", instance.ev_user != instance.station_user)

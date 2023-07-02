@@ -4,51 +4,61 @@ from django.shortcuts import render
 
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from rest_framework import generics
+from django.contrib.auth import get_user_model
+from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView
 from .models import Wallet, Transaction
-from .serializers import WalletSerializer, WalletTransactionForEvOwnerSerializer
-
+from .api.serializers import WalletSerializer, WalletTransaction
+from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+User = get_user_model()
 
-class WalletDetailAPIView(generics.RetrieveAPIView):
+
+class WalletDetailAPIView(ListAPIView):
     queryset = Wallet.objects.all()
     serializer_class = WalletSerializer
 
-class TransactionCreateAPIView(generics.CreateAPIView):
+class TransactionCreateAPIView(CreateAPIView):
     queryset = Transaction.objects.all()
-    serializer_class = WalletTransactionForEvOwnerSerializer
+    serializer_class = WalletTransaction
 
 
-# class WalletTransactionView(APIView):
-#     def get_wallet(self, wallet_id):
-#         try:
-#             wallet = Wallet.objects.get(id=wallet_id)
-#             return wallet
-#         except Wallet.DoesNotExist:
-#             return None
+class WalletTransactionView(APIView):
+    def get(self, request):
+        transactions = Transaction.objects.filter(ev_user=request.user) | Transaction.objects.filter(station_user=request.user)
+        serializer_class = WalletTransaction
+        return Response(serializer_class.data)
+        # def get(self, request):
+        #     wallet = Wallet.objects.get(user=request.user)
+        #     serializer_class = WalletTransaction
+        #     print(serializer_class.data)
+        #     return Response(serializer_class.data)
+        
+            
+        #     return wallet
+        # except Wallet.DoesNotExist:
+        #     return Response({'error': 'Wallet does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-#     def post(self, request, wallet_id):
-#         wallet = self.get_wallet(wallet_id)
-#         if not wallet:
-#             return Response({'error': 'Wallet does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    # def post(self, request, wallet_id):
+    #     wallet = self.get_wallet(wallet_id)
+    #     if not wallet:
+    #         return Response({'error': 'Wallet does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-#         serializer = WalletTransactionForEvOwnerSerializer(data=request.data)
-#         if serializer.is_valid():
-#             amount = serializer.validated_data['amount']
-#             if wallet.balance + amount < 0:
-#                 return Response({'error': 'Insufficient balance'}, status=status.HTTP_400_BAD_REQUEST)
+    #     serializer = WalletTransactionForEvOwnerSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         amount = serializer.validated_data['amount']
+    #         if wallet.balance + amount < 0:
+    #             return Response({'error': 'Insufficient balance'}, status=status.HTTP_400_BAD_REQUEST)
 
-#             transaction = serializer.save()
-#             wallet.balance += amount
-#             wallet.save()
+    #         transaction = serializer.save()
+    #         wallet.balance += amount
+    #         wallet.save()
 
-#             return Response({'transaction_id': transaction.id}, status=status.HTTP_201_CREATED)
-#         else:
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #         return Response({'transaction_id': transaction.id}, status=status.HTTP_201_CREATED)
+    #     else:
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # @login_required
