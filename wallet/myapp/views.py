@@ -12,23 +12,30 @@ from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.db.models import Q
+from utils.choices import PaymentStatus, PaymentType, PaymentMode
 
 User = get_user_model()
 
 
 class WalletDetailAPIView(ListAPIView):
-    queryset = Wallet.objects.all()
-    serializer_class = WalletSerializer
-
-class TransactionCreateAPIView(CreateAPIView):
-    queryset = Transaction.objects.all()
-    serializer_class = WalletTransaction
-
-
-class WalletTransactionView(APIView):
+    
     def get(self, request):
-        transactions = Transaction.objects.filter(ev_user=request.user) | Transaction.objects.filter(station_user=request.user)
-        serializer_class = WalletTransaction
+        user = request.user
+        queryset = Wallet.objects.filter(user=user).first()
+        serializer_class = WalletSerializer(queryset)
+        return Response(serializer_class.data)
+    
+
+class WalletTransactionView(ListAPIView):
+    
+    def get(self, request):
+        self.user = request.user
+        if self.user.groups.filter(name = "ev owner").exists():
+            self.queryset = Transaction.objects.filter(ev_user=self.user)
+        elif self.user.groups.filter(name = "station owner").exists():
+            self.queryset = Transaction.objects.filter(station_user=self.user)
+        serializer_class = WalletTransaction(self.queryset, many=True)
         return Response(serializer_class.data)
         # def get(self, request):
         #     wallet = Wallet.objects.get(user=request.user)
